@@ -1,0 +1,56 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    runtime: nvidia
+    restart: unless-stopped
+
+  wait-for-ollama:
+    image: busybox:latest
+    container_name: wait-for-ollama
+    depends_on:
+      - ollama
+    command: >
+      sh -c "
+        echo 'Waiting for Ollama to be ready...';
+        until nc -z ollama 11434; do
+          echo 'Ollama is not ready yet. Waiting...';
+          sleep 5;
+        done;
+        echo 'Ollama is ready!';
+        sleep 10;
+      "
+
+  open-webui:
+    # image: ghcr.io/open-webui/open-webui:main
+    # with a new version, change it in the tag then: docker compose up -d --force-recreate open-webui
+    image: ghcr.io/open-webui/open-webui:v0.6.18
+    container_name: open-webui
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_API_BASE_URL=http://ollama:11434
+      # Image Generation Configuration
+      - ENABLE_IMAGE_GENERATION=true
+      - IMAGE_GENERATION_ENGINE=automatic1111
+      - AUTOMATIC1111_BASE_URL=http://host.docker.internal:7860/sdapi/v1
+      - IMAGE_SIZE=512x512
+      - IMAGE_STEPS=20
+    volumes:
+      - openwebui_data:/app/backend/data
+    depends_on:
+      wait-for-ollama:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  ollama_data:
+  openwebui_data:
