@@ -54,7 +54,7 @@ sudo systemctl restart docker
    ```
 
 3. **Access the web interface:**
-   - Open WebUI: http://localhost:3000
+   - Open WebUI: http://localhost:8080
    - Ollama API: http://localhost:11434
 
 4. **Download AI models:**
@@ -75,14 +75,10 @@ sudo systemctl restart docker
 - **Storage**: Persistent volume for models (`ollama_data`)
 
 ### Open WebUI
-- **Port**: 3000 (mapped from container port 8080)
+- **Port**: 8080 (mapped from container port 8080)
 - **Purpose**: Web interface for AI interactions
 - **Features**: Chat interface, model management, conversation history
 - **Storage**: Persistent volume for user data (`openwebui_data`)
-
-### Wait-for-Ollama
-- **Purpose**: Service orchestration helper
-- **Function**: Ensures Ollama is ready before starting Open WebUI
 
 ## Configuration
 
@@ -104,6 +100,7 @@ Key environment variables in the docker-compose.yml:
 - `NVIDIA_VISIBLE_DEVICES=all`: Enables all NVIDIA GPUs
 - `OLLAMA_API_BASE_URL`: Points Open WebUI to Ollama API
 - `ENABLE_IMAGE_GENERATION=true`: Enables image generation features
+- `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1`: Forces offline model loading to avoid startup hangs when outbound internet is unavailable
 
 ## Usage
 
@@ -164,11 +161,11 @@ If GPU acceleration isn't working:
 
 ### Port Conflicts
 
-If ports 3000 or 11434 are already in use, modify the port mappings in `docker-compose.yml`:
+If ports 8080 or 11434 are already in use, modify the port mappings in `docker-compose.yml`:
 
 ```yaml
 ports:
-  - "3001:8080"  # Change 3000 to 3001
+  - "3001:8080"  # Change 8080 to 3001
 ```
 
 ## Contributing
