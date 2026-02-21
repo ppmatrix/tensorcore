@@ -8,48 +8,57 @@ services:
       - ollama_data:/root/.ollama
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGIN=*
     runtime: nvidia
     restart: unless-stopped
-
-  wait-for-ollama:
-    image: busybox:latest
-    container_name: wait-for-ollama
-    depends_on:
-      - ollama
-    command: >
-      sh -c "
-        echo 'Waiting for Ollama to be ready...';
-        until nc -z ollama 11434; do
-          echo 'Ollama is not ready yet. Waiting...';
-          sleep 5;
-        done;
-        echo 'Ollama is ready!';
-        sleep 10;
-      "
+    healthcheck:
+      test: ["CMD", "/bin/ollama", "list"]
+      interval: 20s
+      timeout: 15s
+      retries: 10
+      start_period: 120s
 
   open-webui:
     # image: ghcr.io/open-webui/open-webui:main
     # with a new version, change it in the tag then: docker compose up -d --force-recreate open-webui
-    image: ghcr.io/open-webui/open-webui:v0.6.18
+    image: ghcr.io/open-webui/open-webui:v0.8.3
     container_name: open-webui
     ports:
-      - "3000:8080"
+      - "8080:8080"
     environment:
       - OLLAMA_API_BASE_URL=http://ollama:11434
       # Image Generation Configuration
       - ENABLE_IMAGE_GENERATION=true
       - IMAGE_GENERATION_ENGINE=automatic1111
-      - AUTOMATIC1111_BASE_URL=http://host.docker.internal:7860/sdapi/v1
+      - AUTOMATIC1111_BASE_URL=http://host.docker.internal:7860/sdapi/v1 
       - IMAGE_SIZE=512x512
       - IMAGE_STEPS=20
     volumes:
       - openwebui_data:/app/backend/data
     depends_on:
-      wait-for-ollama:
-        condition: service_completed_successfully
+      ollama:
+        condition: service_healthy
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    labels:
+      - "autoheal=true"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/config', timeout=5).read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
+
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: autoheal
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   ollama_data:
